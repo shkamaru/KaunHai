@@ -1,18 +1,38 @@
-#TODO - update this with more info about the game
+# Kaun Hai?
 
-# React + Vite
+A team-based Bollywood celebrity guessing game for parties. Two teams take turns describing celebrities using clues — without saying any of the forbidden words.
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## How to Play
 
-Currently, two official plugins are available:
+1. **Pick a deck** — Bollywood stars or the Priyadarshan universe
+2. **Choose rounds** — 1 to 5 rounds (both teams play once per round)
+3. **Take turns** — Each team gets 60 seconds per turn. One player describes the celebrity on the card to their teammates using any words *except* the forbidden ones listed
+4. **Score points:**
+   - +1 for each correct guess
+   - 0 for skipping a card
+   - -1 if the opposing team catches you saying a forbidden word
+5. **Win** — The team with the most points after all rounds wins
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Cards
 
-## React Compiler
+Each card has a celebrity name, a hint clue, and 5–7 forbidden words the describer cannot say.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```
+Celebrity: Shah Rukh Khan
+Hint: Known for iconic romantic poses
+Forbidden: King Khan, Bollywood, DDLJ, arms, romance ...
+```
 
-## Expanding the ESLint configuration
+## Project Structure
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```
+src/
+├── main.jsx              # App entry point, PostHog analytics init
+├── KaunHai.jsx           # All game logic and UI
+└── decks/
+    ├── index.js          # Exports all available decks
+    ├── bollywood.js      # Bollywood celebrity cards
+    └── priyadarshan.js   # Priyadarshan film character cards
+```
+
+The entire game runs as a single React component with screen-based state — Home → Deck Select → Round Select → Game → Turn Result → Final Result.
