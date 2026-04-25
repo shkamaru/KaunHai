@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { usePostHog } from "@posthog/react";
 import { DECKS } from "./decks/index";
 
 /* ── Design tokens ── */
@@ -40,6 +41,7 @@ const btnBase = {
 
 /* ── Component ── */
 export default function KaunHai() {
+  const posthog = usePostHog();
   const [screen, setScreen] = useState("home");
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [totalRounds, setTotalRounds] = useState(3);
@@ -74,6 +76,11 @@ export default function KaunHai() {
   }, [isRunning, timeLeft]);
 
   function initGame() {
+    posthog?.capture("game_started", {
+      deck_id: selectedDeck.id,
+      deck_name: selectedDeck.name,
+      total_rounds: totalRounds,
+    });
     shuffledCards.current = [...selectedDeck.cards].sort(() => Math.random() - 0.5);
     cardIndex.current = 0;
     setCurrentCard(shuffledCards.current[0]);
@@ -87,7 +94,14 @@ export default function KaunHai() {
     setScreen("game");
   }
 
-  function startTurn() { setIsRunning(true); }
+  function startTurn() {
+    posthog?.capture("turn_started", {
+      team: currentTeam,
+      round: Math.floor(turnsCompleted / 2) + 1,
+      deck_id: selectedDeck?.id,
+    });
+    setIsRunning(true);
+  }
 
   function advanceCard() {
     cardIndex.current += 1;
@@ -100,17 +114,32 @@ export default function KaunHai() {
 
   function nextCard(wasCorrect) {
     if (wasCorrect) {
+      posthog?.capture("card_correct", {
+        team: currentTeam,
+        card: currentCard?.celeb,
+        deck_id: selectedDeck?.id,
+      });
       setCelebrateAnim(true);
       setTimeout(() => setCelebrateAnim(false), 600);
       setCorrect(c => c + 1);
       setScores(s => ({ ...s, [currentTeam]: s[currentTeam] + 1 }));
     } else {
+      posthog?.capture("card_skipped", {
+        team: currentTeam,
+        card: currentCard?.celeb,
+        deck_id: selectedDeck?.id,
+      });
       setSkipped(s => s + 1);
     }
     advanceCard();
   }
 
   function caughtPressed() {
+    posthog?.capture("card_caught", {
+      team: currentTeam,
+      card: currentCard?.celeb,
+      deck_id: selectedDeck?.id,
+    });
     setBuzz(true);
     setTimeout(() => setBuzz(false), 700);
     setScores(s => ({ ...s, [currentTeam]: Math.max(0, s[currentTeam] - 1) }));
@@ -123,6 +152,26 @@ export default function KaunHai() {
     const newTurnsCompleted = turnsCompleted + 1;
     const newRoundsCompleted = Math.floor(newTurnsCompleted / 2);
     const isGameOver = newTurnsCompleted % 2 === 0 && newRoundsCompleted >= totalRounds;
+    posthog?.capture("turn_ended", {
+      team: currentTeam,
+      correct,
+      skipped,
+      time_remaining: timeLeft,
+      ended_early: timeLeft > 0,
+      round: Math.floor(turnsCompleted / 2) + 1,
+      deck_id: selectedDeck?.id,
+    });
+    if (isGameOver) {
+      const winner = scores.A > scores.B ? "A" : scores.B > scores.A ? "B" : null;
+      posthog?.capture("game_completed", {
+        winner,
+        score_a: scores.A,
+        score_b: scores.B,
+        total_rounds: totalRounds,
+        deck_id: selectedDeck?.id,
+        deck_name: selectedDeck?.name,
+      });
+    }
     setJustFinishedTeam(currentTeam);
     setLastTurnStats({ correct, skipped });
     setTurnsCompleted(newTurnsCompleted);
@@ -256,7 +305,7 @@ export default function KaunHai() {
             {DECKS.map(deck => (
               <button
                 key={deck.id}
-                onClick={() => { setSelectedDeck(deck); setScreen("roundSelect"); }}
+                onClick={() => { posthog?.capture("deck_selected", { deck_id: deck.id, deck_name: deck.name, card_count: deck.cards.length }); setSelectedDeck(deck); setScreen("roundSelect"); }}
                 style={{
                   ...btnBase, background: C.surface, border: `1px solid ${C.border}`,
                   borderRadius: 14, padding: "20px", textAlign: "left",
@@ -693,7 +742,7 @@ export default function KaunHai() {
           {/* Actions */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 10 }}>
             <button
-              onClick={() => setScreen("home")}
+              onClick={() => { posthog?.capture("game_quit", { turns_completed: turnsCompleted, score_a: scores.A, score_b: scores.B, deck_id: selectedDeck?.id }); setScreen("home"); }}
               style={{
                 ...btnBase, background: C.surface, border: `1px solid ${C.border}`,
                 borderRadius: 14, padding: "16px",
@@ -805,7 +854,7 @@ export default function KaunHai() {
                 Home
               </button>
               <button
-                onClick={() => { setSelectedDeck(null); setScreen("deckSelect"); }}
+                onClick={() => { posthog?.capture("play_again_clicked", { deck_id: selectedDeck?.id, deck_name: selectedDeck?.name }); setSelectedDeck(null); setScreen("deckSelect"); }}
                 style={{
                   ...btnBase, background: C.text, borderRadius: 14,
                   padding: "16px", color: C.bg,
